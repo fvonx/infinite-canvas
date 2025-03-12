@@ -1,38 +1,507 @@
-.App {
+/* App.css */
+
+/* Global app container */
+.app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+/* Canvas container */
+.canvas-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #f5f5f5;
+  background-image: 
+    linear-gradient(rgba(200, 200, 200, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200, 200, 200, 0.3) 1px, transparent 1px);
+  background-size: 20px 20px;
+  cursor: default;
+  touch-action: none;
+  -webkit-overflow-scrolling: none;
+  overscroll-behavior: none;
+}
+
+/* Canvas mode cursors */
+.canvas-container.mode-rectangle {
+  cursor: crosshair;
+}
+
+.canvas-container.mode-postit {
+  cursor: crosshair;
+}
+
+.canvas-container.mode-text {
+  cursor: text;
+}
+
+.canvas-container.mode-connect {
+  cursor: cell;
+}
+
+.canvas-container.mode-delete {
+  cursor: not-allowed;
+}
+
+.canvas-container.mode-select {
+  cursor: default;
+}
+
+/* Canvas content that gets transformed */
+.canvas-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+}
+
+/* Rectangle styling */
+.rectangle {
+  position: absolute;
+  background-color: white;
+  border: 2px solid #4a90e2;
+  border-radius: 3px;
+  min-width: 50px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+}
+
+.rectangle.selected {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.5);
+}
+
+.rectangle-content {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
+/* Post-it styling */
+.postit {
+  position: absolute;
+  background-color: #ffeb3b; /* Yellow color for post-its */
+  border: 1px solid #e6d335;
+  min-width: 80px;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+  transform: rotate(-1deg); /* Slight rotation for post-it look */
+}
+
+.postit.selected {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.5);
+}
+
+.postit-content {
+  width: 100%;
+  height: 100%;
+  padding: 15px;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: 'Comic Sans MS', cursive, sans-serif; /* Handwritten-like font */
+}
+
+/* Text node styling */
+.text-node {
+  position: absolute;
+  background-color: transparent;
+  border: 1px solid transparent;
+  padding: 2px 4px;
+  display: inline-block;
+  user-select: none;
+  z-index: 2;
+  word-wrap: break-word;
+  max-width: 300px;
+  min-width: 30px;
+  min-height: 20px;
+  font-size: 16px;
+}
+
+.text-node.selected {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.5);
+}
+
+.text-content {
+  padding: 2px;
+  box-sizing: border-box;
+  overflow: visible;
+  text-align: left;
+}
+
+/* Resize handles */
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #ffffff;
+  border: 1px solid #4a90e2;
+  z-index: 3;
+}
+
+.resize-handle:hover {
+  background-color: #e1f0ff;
+}
+
+.resize-handle.n {
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: n-resize;
+}
+
+.resize-handle.e {
+  top: 50%;
+  right: -5px;
+  transform: translateY(-50%);
+  cursor: e-resize;
+}
+
+.resize-handle.s {
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: s-resize;
+}
+
+.resize-handle.w {
+  top: 50%;
+  left: -5px;
+  transform: translateY(-50%);
+  cursor: w-resize;
+}
+
+.resize-handle.ne {
+  top: -5px;
+  right: -5px;
+  cursor: ne-resize;
+}
+
+.resize-handle.se {
+  bottom: -5px;
+  right: -5px;
+  cursor: se-resize;
+}
+
+.resize-handle.sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: sw-resize;
+}
+
+.resize-handle.nw {
+  top: -5px;
+  left: -5px;
+  cursor: nw-resize;
+}
+
+/* Make resize handles more visible when selected */
+.rectangle.selected .resize-handle,
+.postit.selected .resize-handle,
+.text-node.selected .resize-handle,
+.rectangle.multi-selected .resize-handle,
+.postit.multi-selected .resize-handle,
+.text-node.multi-selected .resize-handle {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 3px rgba(255, 107, 107, 0.5);
+}
+
+/* SVG for connections inside canvas-content */
+.connections-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none; /* Allow clicks to pass through to the canvas by default */
+  overflow: visible; /* Allow SVG content to be visible outside the container */
+}
+
+.connection-line {
+  stroke: #4a90e2;
+  stroke-width: 2;
+  fill: none;
   pointer-events: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.connection-line.temporary {
+  stroke-dasharray: 5, 5;
+  stroke: #ff6b6b;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+/* Invisible hitbox for better click detection */
+.connection-hitbox {
+  stroke: transparent;
+  stroke-width: 15;
+  fill: none;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+/* Selection box (rubber band) styling */
+.selection-box {
+  border: 1px dashed #4a90e2;
+  background-color: rgba(74, 144, 226, 0.1);
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Multi-selection styles for elements */
+.rectangle.multi-selected,
+.postit.multi-selected,
+.text-node.multi-selected {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.5);
+}
+
+/* Multi-selected connection line */
+.connection-line.multi-selected {
+  stroke: #4a90e2;
+  stroke-width: 3;
+}
+
+.connection-hitbox.multi-selected {
+  stroke: rgba(74, 144, 226, 0.3);
+  stroke-width: 10;
+}
+
+/* Style for all selected items together */
+.multi-selected:not(.connection-line):not(.connection-hitbox)::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 1px dashed #4a90e2;
+  pointer-events: none;
+}
+
+/* Add keyboard shortcut hints to status bar */
+.status-bar::after {
+  content: " | Shift+Click: Multi-select | Ctrl+A: Select All";
+  font-style: italic;
+}
+
+/* Styles for elements when in delete mode */
+.mode-delete .rectangle,
+.mode-delete .postit,
+.mode-delete .text-node,
+.mode-delete .connection-hitbox {
+  cursor: not-allowed;
+}
+
+.mode-delete .rectangle:hover,
+.mode-delete .postit:hover,
+.mode-delete .text-node:hover {
+  box-shadow: 0 0 0 2px rgba(255, 0, 0, 0.5);
+  border-color: #ff6b6b;
+}
+
+.mode-delete .connection-hitbox:hover {
+  stroke: rgba(255, 0, 0, 0.5);
+  stroke-width: 8;
+}
+
+/* Visual feedback when hovering over deletable elements */
+.rectangle.deletable:hover,
+.postit.deletable:hover,
+.text-node.deletable:hover {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.3);
+  opacity: 0.9;
+}
+
+/* Add a delete icon or visual indicator */
+.mode-delete .rectangle:hover::after,
+.mode-delete .postit:hover::after,
+.mode-delete .text-node:hover::after {
+  content: '🗑';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  color: rgba(255, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+/* Controls styling */
+.controls {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  background-color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+  gap: 10px;
+  touch-action: none; /* Prevent touchpad gestures on controls */
+}
+
+.storage-controls {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  background-color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 10px;
+  touch-action: none; /* Prevent touchpad gestures on controls */
+}
+
+.storage-controls button:nth-child(1) {
+  background-color: #4CAF50; /* Green for Save */
+}
+
+.storage-controls button:nth-child(1):hover {
+  background-color: #45a049;
+}
+
+.storage-controls button:nth-child(2) {
+  background-color: #2196F3; /* Blue for Export */
+}
+
+.storage-controls button:nth-child(2):hover {
+  background-color: #0b7dda;
+}
+
+.storage-controls button:nth-child(3) {
+  background-color: #FF9800; /* Orange for Import */
+}
+
+.storage-controls button:nth-child(3):hover {
+  background-color: #e68a00;
+}
+
+.storage-controls button:nth-child(4) {
+  background-color: #f44336; /* Red for Reset */
+}
+
+.storage-controls button:nth-child(4):hover {
+  background-color: #d32f2f;
+}
+
+.zoom-controls {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100;
+  background-color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 10px;
+  touch-action: none; /* Prevent touchpad gestures on controls */
+}
+
+.status-bar {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #666;
+  touch-action: none; /* Prevent touchpad gestures on status bar */
+}
+
+/* Button styling */
+button {
+  padding: 8px 15px;
+  background-color: #4a90e2;
   color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  touch-action: manipulation; /* Improve touch responsiveness */
 }
 
-.App-link {
-  color: #61dafb;
+button:hover {
+  background-color: #3a80d2;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+button.active {
+  background-color: #2a70c2;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Special styling for delete button */
+button.delete-btn,
+button.mode-delete {
+  background-color: #f44336;
+}
+
+button.delete-btn:hover,
+button.mode-delete:hover {
+  background-color: #d32f2f;
+}
+
+button.delete-btn.active,
+button.mode-delete.active {
+  background-color: #c62828;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Prevent text selection during interactions */
+.rectangle, .postit, .text-node, .controls, .zoom-controls, .storage-controls, .status-bar, button {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Ensure app is responsive */
+@media (max-width: 768px) {
+  .controls, .storage-controls {
+    flex-direction: column;
+    gap: 5px;
   }
-  to {
-    transform: rotate(360deg);
+  
+  button {
+    padding: 6px 12px;
+    font-size: 12px;
   }
 }
