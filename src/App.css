@@ -506,6 +506,41 @@ button.mode-delete.active {
   animation: fadeOut 2s forwards;
 }
 
+/* Alignment controls styling */
+.alignment-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 100;
+  background-color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 10px;
+  touch-action: none; /* Prevent touchpad gestures on controls */
+}
+
+.alignment-controls button {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation; /* Improve touch responsiveness */
+}
+
+.alignment-controls button:hover {
+  background-color: #3a80d2;
+}
+
 @keyframes fadeOut {
   0% { opacity: 1; }
   70% { opacity: 1; }

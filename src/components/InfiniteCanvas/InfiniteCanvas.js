@@ -5,6 +5,7 @@ import ControlPanel from '../Controls/ControlPanel';
 import StorageControls from '../Controls/StorageControls';
 import ZoomControls from '../Controls/ZoomControls';
 import StatusBar from '../Controls/StatusBar';
+import AlignmentControls from '../Controls/AlignmentControls';
 
 const InfiniteCanvas = () => {
   return (
@@ -13,6 +14,7 @@ const InfiniteCanvas = () => {
       <ControlPanel />
       <StorageControls />
       <ZoomControls />
+      <AlignmentControls />
       <StatusBar />
     </div>
   );
