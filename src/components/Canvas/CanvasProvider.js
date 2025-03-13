@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import CanvasContext from './CanvasContext';
 import { loadCanvasState, saveCanvasState } from '../utils/storageUtils';
-import { createElementCopies, getSelectedElements } from '../utils/clipboardUtils';
 
 const CanvasProvider = ({ children }) => {
   // State for the canvas elements
@@ -153,6 +152,28 @@ const CanvasProvider = ({ children }) => {
     setTransform({ x: 0, y: 0, scale: 1 });
   }, []);
   
+  // Get selected elements helper function
+  const getSelectedElements = useCallback(({ elements, selectedIds, selectedId }) => {
+    return elements.filter(element => 
+      selectedIds.includes(element.id) || element.id === selectedId
+    );
+  }, []);
+  
+  // Create copies of elements with new IDs helper function
+  const createElementCopies = useCallback((elements, offsetX = 20, offsetY = 20) => {
+    return elements.map(element => {
+      // Generate a unique ID based on timestamp plus random number
+      const newId = Date.now() + Math.floor(Math.random() * 10000);
+      
+      return {
+        ...element,
+        id: newId,
+        x: element.x + offsetX,
+        y: element.y + offsetY
+      };
+    });
+  }, []);
+  
   // Clipboard functions
   const copySelectedElements = useCallback(() => {
     if (mode === 'select') {
@@ -187,6 +208,18 @@ const CanvasProvider = ({ children }) => {
       const totalCopied = copiedRectangles.length + copiedPostits.length + copiedTexts.length;
       if (totalCopied > 0) {
         console.log(`Copied ${totalCopied} item${totalCopied !== 1 ? 's' : ''} to clipboard`);
+        
+        // Show a toast notification
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = `Copied ${totalCopied} item${totalCopied !== 1 ? 's' : ''} to clipboard`;
+        document.body.appendChild(toast);
+        
+        // Remove toast after animation completes
+        setTimeout(() => {
+          document.body.removeChild(toast);
+        }, 2000);
+        
         return true;
       }
       
@@ -201,7 +234,8 @@ const CanvasProvider = ({ children }) => {
     selectedElements, 
     selectedRectId, 
     selectedPostitId, 
-    selectedTextId
+    selectedTextId,
+    getSelectedElements
   ]);
 
   const pasteElements = useCallback((offsetX = 20, offsetY = 20) => {
@@ -249,14 +283,26 @@ const CanvasProvider = ({ children }) => {
       // Select all newly pasted elements
       setSelectedElements(newSelections);
       
+      // Show a toast notification
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = `Pasted ${totalItems} item${totalItems !== 1 ? 's' : ''} from clipboard`;
+      document.body.appendChild(toast);
+      
+      // Remove toast after animation completes
+      setTimeout(() => {
+        document.body.removeChild(toast);
+      }, 2000);
+      
       console.log(`Pasted ${totalItems} item${totalItems !== 1 ? 's' : ''} from clipboard`);
       return true;
     }
     return false;
   }, [
     mode, 
-    clipboardItems, 
-    clearAllSelections
+    clipboardItems,
+    clearAllSelections,
+    createElementCopies
   ]);
   
   // Provide all state and functions to children components

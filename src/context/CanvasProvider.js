@@ -28,6 +28,13 @@ const CanvasProvider = ({ children }) => {
   const [tempConnection, setTempConnection] = useState(null);
   const [connectionSource, setConnectionSource] = useState(null);
   
+  // State for clipboard
+  const [clipboardItems, setClipboardItems] = useState({
+    rectangles: [],
+    postits: [],
+    texts: [],
+  });
+  
   // Refs
   const canvasRef = useRef(null);
   const contentRef = useRef(null);
@@ -145,6 +152,159 @@ const CanvasProvider = ({ children }) => {
     setTransform({ x: 0, y: 0, scale: 1 });
   }, []);
   
+  // Get selected elements helper function
+  const getSelectedElements = useCallback(({ elements, selectedIds, selectedId }) => {
+    return elements.filter(element => 
+      selectedIds.includes(element.id) || element.id === selectedId
+    );
+  }, []);
+  
+  // Create copies of elements with new IDs helper function
+  const createElementCopies = useCallback((elements, offsetX = 20, offsetY = 20) => {
+    return elements.map(element => {
+      // Generate a unique ID based on timestamp plus random number
+      const newId = Date.now() + Math.floor(Math.random() * 10000);
+      
+      return {
+        ...element,
+        id: newId,
+        x: element.x + offsetX,
+        y: element.y + offsetY
+      };
+    });
+  }, []);
+  
+  // Clipboard functions
+  const copySelectedElements = useCallback(() => {
+    if (mode === 'select') {
+      console.log("Copying selected elements...");
+      // Get selected elements using our utility function
+      const copiedRectangles = getSelectedElements({
+        elements: rectangles,
+        selectedIds: selectedElements.rectangles,
+        selectedId: selectedRectId
+      });
+      
+      const copiedPostits = getSelectedElements({
+        elements: postits,
+        selectedIds: selectedElements.postits,
+        selectedId: selectedPostitId
+      });
+      
+      const copiedTexts = getSelectedElements({
+        elements: texts,
+        selectedIds: selectedElements.texts,
+        selectedId: selectedTextId
+      });
+      
+      // Update clipboard state
+      setClipboardItems({
+        rectangles: copiedRectangles,
+        postits: copiedPostits,
+        texts: copiedTexts,
+      });
+      
+      // Provide feedback if anything was copied
+      const totalCopied = copiedRectangles.length + copiedPostits.length + copiedTexts.length;
+      if (totalCopied > 0) {
+        console.log(`Copied ${totalCopied} item${totalCopied !== 1 ? 's' : ''} to clipboard`);
+        
+        // Show a toast notification
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = `Copied ${totalCopied} item${totalCopied !== 1 ? 's' : ''} to clipboard`;
+        document.body.appendChild(toast);
+        
+        // Remove toast after animation completes
+        setTimeout(() => {
+          document.body.removeChild(toast);
+        }, 2000);
+        
+        return true;
+      }
+      
+      return false;
+    }
+    return false;
+  }, [
+    mode, 
+    rectangles, 
+    postits, 
+    texts, 
+    selectedElements, 
+    selectedRectId, 
+    selectedPostitId, 
+    selectedTextId,
+    getSelectedElements
+  ]);
+
+  const pasteElements = useCallback((offsetX = 20, offsetY = 20) => {
+    if (mode === 'select') {
+      console.log("Pasting elements...");
+      // Only proceed if there's something to paste
+      const totalItems = 
+        clipboardItems.rectangles.length + 
+        clipboardItems.postits.length + 
+        clipboardItems.texts.length;
+        
+      if (totalItems === 0) return false;
+      
+      // Clear existing selections first
+      clearAllSelections();
+      
+      const newSelections = {
+        rectangles: [],
+        postits: [],
+        texts: [],
+        connections: []
+      };
+      
+      // Create new rectangles from clipboard using our utility function
+      if (clipboardItems.rectangles.length > 0) {
+        const newRects = createElementCopies(clipboardItems.rectangles, offsetX, offsetY);
+        newSelections.rectangles = newRects.map(rect => rect.id);
+        setRectangles(prevRects => [...prevRects, ...newRects]);
+      }
+      
+      // Create new post-its from clipboard
+      if (clipboardItems.postits.length > 0) {
+        const newPostits = createElementCopies(clipboardItems.postits, offsetX, offsetY);
+        newSelections.postits = newPostits.map(postit => postit.id);
+        setPostits(prevPostits => [...prevPostits, ...newPostits]);
+      }
+      
+      // Create new texts from clipboard
+      if (clipboardItems.texts.length > 0) {
+        const newTexts = createElementCopies(clipboardItems.texts, offsetX, offsetY);
+        newSelections.texts = newTexts.map(text => text.id);
+        setTexts(prevTexts => [...prevTexts, ...newTexts]);
+      }
+      
+      // Select all newly pasted elements
+      setSelectedElements(newSelections);
+      
+      // Show a toast notification
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = `Pasted ${totalItems} item${totalItems !== 1 ? 's' : ''} from clipboard`;
+      document.body.appendChild(toast);
+      
+      // Remove toast after animation completes
+      setTimeout(() => {
+        document.body.removeChild(toast);
+      }, 2000);
+      
+      console.log(`Pasted ${totalItems} item${totalItems !== 1 ? 's' : ''} from clipboard`);
+      return true;
+    }
+    return false;
+  }, [
+    mode, 
+    clipboardItems,
+    clearAllSelections,
+    createElementCopies
+  ]);
+  
   // Provide all state and functions to children components
   const contextValue = {
     // State
@@ -161,6 +321,7 @@ const CanvasProvider = ({ children }) => {
     connectionSource,
     transform,
     selectedElements,
+    clipboardItems,
     
     // Refs
     canvasRef,
@@ -181,6 +342,7 @@ const CanvasProvider = ({ children }) => {
     setConnectionSource,
     setTransform,
     setSelectedElements,
+    setClipboardItems,
     
     // Actions
     clearAllSelections,
@@ -188,6 +350,8 @@ const CanvasProvider = ({ children }) => {
     zoomIn,
     zoomOut,
     resetZoom,
+    copySelectedElements,
+    pasteElements,
   };
   
   return (

@@ -23,7 +23,7 @@ const CanvasContext = React.createContext({
   contentRef: null,
   fileInputRef: null,
   
-  // Functions placeholder
+  // Functions placeholders
   setMode: () => {},
   setRectangles: () => {},
   setPostits: () => {},

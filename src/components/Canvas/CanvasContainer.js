@@ -169,12 +169,6 @@ const CanvasContainer = () => {
   // Add keyboard event listener for key commands
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Log the clipboard functions for debugging
-      console.log("Clipboard functions in event handler:", {
-        copyType: typeof copySelectedElements,
-        pasteType: typeof pasteElements
-      });
-
       // Check if we're in select mode and if backspace or delete key was pressed
       if (mode === 'select' && (e.key === 'Backspace' || e.key === 'Delete')) {
         if (deleteSelectedElements()) {
@@ -186,9 +180,13 @@ const CanvasContainer = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         e.preventDefault();
         if (mode === 'select') {
-          console.log("Copy shortcut detected"); // Debug
+          console.log("Copy shortcut detected");
           if (typeof copySelectedElements === 'function') {
-            copySelectedElements();
+            const copied = copySelectedElements();
+            if (copied) {
+              // Show copy feedback (toast notification managed by copySelectedElements function)
+              console.log("Elements copied to clipboard");
+            }
           } else {
             console.error("copySelectedElements is not a function!", copySelectedElements);
           }
@@ -199,7 +197,7 @@ const CanvasContainer = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
         e.preventDefault();
         if (mode === 'select') {
-          console.log("Paste shortcut detected"); // Debug
+          console.log("Paste shortcut detected");
           if (typeof pasteElements === 'function') {
             pasteElements();
           } else {
@@ -208,8 +206,8 @@ const CanvasContainer = () => {
         }
       }
       
-      // Add keyboard shortcut for select all: Ctrl+A
-      if (e.ctrlKey && e.key === 'a' && mode === 'select') {
+      // Add keyboard shortcut for select all: Ctrl+A or Cmd+A
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && mode === 'select') {
         e.preventDefault(); // Prevent browser's select all
         
         // Select all elements on the canvas
