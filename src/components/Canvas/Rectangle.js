@@ -379,7 +379,8 @@ const Rectangle = ({ rect, isMultiSelected }) => {
         left: `${rect.x}px`,
         top: `${rect.y}px`,
         width: `${rect.width}px`,
-        height: `${rect.height}px`
+        height: `${rect.height}px`,
+        backgroundColor: rect.backgroundColor || '#FFFFFF' // Apply background color if set
       }}
       onClick={handleClick}
       onMouseDown={handleMouseDown}

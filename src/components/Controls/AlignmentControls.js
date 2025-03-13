@@ -7,20 +7,56 @@ const AlignmentControls = () => {
     rectangles, 
     postits, 
     texts,
+    connections,
     selectedElements,
+    selectedRectId,
+    selectedPostitId,
     setRectangles,
     setPostits,
-    setTexts
+    setTexts,
+    setConnections
   } = useCanvasContext();
 
   // Calculate total number of selected elements
   const totalSelected = 
     selectedElements.rectangles.length + 
     selectedElements.postits.length + 
-    selectedElements.texts.length;
+    selectedElements.texts.length +
+    selectedElements.connections.length;
   
+  // Check if exactly one connection is selected (for arrow controls)
+  const hasExactlyOneConnection = selectedElements.connections.length === 1 && 
+    selectedElements.rectangles.length === 0 && 
+    selectedElements.postits.length === 0 && 
+    selectedElements.texts.length === 0;
+  
+  // Get the selected connection if exactly one is selected
+  const selectedConnection = hasExactlyOneConnection 
+    ? connections.find(conn => conn.id === selectedElements.connections[0])
+    : null;
+
   // Only show and enable alignment controls when in select mode and multiple elements are selected
-  const isVisible = mode === 'select' && totalSelected > 1;
+  const showAlignmentControls = mode === 'select' && totalSelected > 1 &&
+    (selectedElements.rectangles.length > 0 || 
+     selectedElements.postits.length > 0 || 
+     selectedElements.texts.length > 0);
+
+  // Only show color controls when rectangle or post-it is selected
+  const hasRectOrPostit = 
+    selectedElements.rectangles.length > 0 || 
+    selectedElements.postits.length > 0 || 
+    selectedRectId || 
+    selectedPostitId;
+
+  // Define pastel color palette
+  const colorPalette = [
+    '#FFFFFF', // Default white
+    '#FFD6E0', // Pastel pink
+    '#FFEFB5', // Pastel yellow - matching post-it default color
+    '#D1F0C2', // Pastel green
+    '#B5DEFF', // Pastel blue
+    '#E2CCFF'  // Pastel purple
+  ];
 
   // Alignment functions
   const alignLeft = () => {
@@ -317,25 +353,142 @@ const AlignmentControls = () => {
     }
   };
 
-  // If not visible, return null to not render anything
-  if (!isVisible) {
-    return null;
-  }
+  // Function to change background color of selected elements
+  const changeBackgroundColor = (color) => {
+    // Update rectangles
+    if (selectedElements.rectangles.length > 0) {
+      setRectangles(prevRects => 
+        prevRects.map(rect => 
+          selectedElements.rectangles.includes(rect.id)
+            ? { ...rect, backgroundColor: color }
+            : rect
+        )
+      );
+    } else if (selectedRectId) {
+      // Single rectangle selection
+      setRectangles(prevRects => 
+        prevRects.map(rect => 
+          rect.id === selectedRectId
+            ? { ...rect, backgroundColor: color }
+            : rect
+        )
+      );
+    }
+    
+    // Update post-its
+    if (selectedElements.postits.length > 0) {
+      setPostits(prevPostits => 
+        prevPostits.map(postit => 
+          selectedElements.postits.includes(postit.id)
+            ? { ...postit, backgroundColor: color }
+            : postit
+        )
+      );
+    } else if (selectedPostitId) {
+      // Single post-it selection
+      setPostits(prevPostits => 
+        prevPostits.map(postit => 
+          postit.id === selectedPostitId
+            ? { ...postit, backgroundColor: color }
+            : postit
+        )
+      );
+    }
+  };
+
+  // Toggle arrow functions
+  const toggleStartArrow = () => {
+    if (!selectedConnection) return;
+    
+    setConnections(prevConnections => 
+      prevConnections.map(conn => {
+        if (conn.id === selectedConnection.id) {
+          return { 
+            ...conn, 
+            startArrow: conn.startArrow ? undefined : true 
+          };
+        }
+        return conn;
+      })
+    );
+  };
+  
+  const toggleEndArrow = () => {
+    if (!selectedConnection) return;
+    
+    setConnections(prevConnections => 
+      prevConnections.map(conn => {
+        if (conn.id === selectedConnection.id) {
+          return { 
+            ...conn, 
+            endArrow: conn.endArrow ? undefined : true 
+          };
+        }
+        return conn;
+      })
+    );
+  };
+
+  // Determine whether the arrow buttons should be highlighted
+  const hasStartArrow = selectedConnection?.startArrow;
+  const hasEndArrow = selectedConnection?.endArrow;
 
   return (
-    <div className="alignment-controls">
-      <button onClick={alignLeft} title="Align Left">
-        ⇐
-      </button>
-      <button onClick={alignTop} title="Align Top">
-        ⇑
-      </button>
-      <button onClick={alignBottom} title="Align Bottom">
-        ⇓
-      </button>
-      <button onClick={alignRight} title="Align Right">
-        ⇒
-      </button>
+    <div className="controls-container">
+      {showAlignmentControls && (
+        <div className="alignment-controls">
+          <button onClick={alignLeft} title="Align Left">
+            ⇐
+          </button>
+          <button onClick={alignTop} title="Align Top">
+            ⇑
+          </button>
+          <button onClick={alignBottom} title="Align Bottom">
+            ⇓
+          </button>
+          <button onClick={alignRight} title="Align Right">
+            ⇒
+          </button>
+        </div>
+      )}
+      
+      {hasExactlyOneConnection && (
+        <div className="arrow-controls">
+          <div className="arrow-label">Arrows:</div>
+          <button 
+            className={hasStartArrow ? 'active' : ''} 
+            onClick={toggleStartArrow}
+            title="Toggle Start Arrow"
+          >
+            ←
+          </button>
+          <button 
+            className={hasEndArrow ? 'active' : ''} 
+            onClick={toggleEndArrow}
+            title="Toggle End Arrow"
+          >
+            →
+          </button>
+        </div>
+      )}
+      
+      {hasRectOrPostit && (
+        <div className="color-controls">
+          <div className="color-label">Colors:</div>
+          {colorPalette.map((color, index) => (
+            <div 
+              key={index}
+              className="color-circle"
+              style={{ 
+                backgroundColor: color,
+                border: color === '#FFFFFF' ? '1px solid #ccc' : 'none'
+              }}
+              onClick={() => changeBackgroundColor(color)}
+              title={color === '#FFFFFF' ? 'Default' : `Color ${index}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

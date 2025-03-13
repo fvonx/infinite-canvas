@@ -379,7 +379,8 @@ const Postit = ({ postit, isMultiSelected }) => {
         left: `${postit.x}px`,
         top: `${postit.y}px`,
         width: `${postit.width}px`,
-        height: `${postit.height}px`
+        height: `${postit.height}px`,
+        backgroundColor: postit.backgroundColor || '#FFEFB5' // Updated to match pastel yellow from color picker
       }}
       onClick={handleClick}
       onMouseDown={handleMouseDown}

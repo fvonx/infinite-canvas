@@ -102,7 +102,7 @@
 /* Post-it styling */
 .postit {
   position: absolute;
-  background-color: #ffeb3b; /* Yellow color for post-its */
+  background-color: #FFEFB5; /* Updated to match pastel yellow from color picker */
   border: 1px solid #e6d335;
   min-width: 80px;
   min-height: 80px;
@@ -313,7 +313,7 @@
 
 /* Add keyboard shortcut hints to status bar */
 .status-bar::after {
-  content: " | Shift+Click: Multi-select | Ctrl+A: Select All | Ctrl+C: Copy | Ctrl+V: Paste";
+  content: " | Shift+Click: Multi-select | Ctrl+A: Select All | Ctrl+C: Copy | Ctrl+V: Paste | Ctrl+0: Reset Zoom";
   font-style: italic;
 }
 
@@ -506,12 +506,26 @@ button.mode-delete.active {
   animation: fadeOut 2s forwards;
 }
 
-/* Alignment controls styling */
-.alignment-controls {
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Controls container for alignment and color tools */
+.controls-container {
   position: fixed;
   bottom: 20px;
   left: 20px;
   z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  touch-action: none;
+}
+
+/* Alignment controls styling */
+.alignment-controls {
   background-color: white;
   padding: 10px;
   border-radius: 5px;
@@ -541,10 +555,81 @@ button.mode-delete.active {
   background-color: #3a80d2;
 }
 
-@keyframes fadeOut {
-  0% { opacity: 1; }
-  70% { opacity: 1; }
-  100% { opacity: 0; }
+/* Color controls styling */
+.color-controls {
+  background-color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  touch-action: none;
+}
+
+.color-label {
+  font-size: 14px;
+  color: #666;
+  margin-right: 5px;
+}
+
+.color-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.color-circle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Add these styles to your App.css file */
+
+/* Arrow controls styling */
+.arrow-controls {
+  background-color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  touch-action: none;
+}
+
+.arrow-label {
+  font-size: 14px;
+  color: #666;
+  margin-right: 5px;
+}
+
+.arrow-controls button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+.arrow-controls button:hover {
+  background-color: #3a80d2;
+}
+
+.arrow-controls button.active {
+  background-color: #2a70c2;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 /* Ensure app is responsive */

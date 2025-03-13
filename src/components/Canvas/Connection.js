@@ -82,17 +82,53 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
     
     const { fromX, fromY, toX, toY } = getConnectionPoints(fromElement, toElement);
     
+    // Create the SVG path for the connection
+    const pathData = `M${fromX},${fromY} C${fromX + (toX - fromX) / 2},${fromY} ${toX - (toX - fromX) / 2},${toY} ${toX},${toY}`;
+    
+    // Calculate marker orientation for arrows
+    const startArrowId = connection.startArrow ? "arrow-start" : "";
+    const endArrowId = connection.endArrow ? "arrow-end" : "";
+    
     return (
       <g className="connection-group">
+        {/* Arrow marker definitions */}
+        <defs>
+          <marker
+            id="arrow-start"
+            viewBox="0 0 10 10"
+            refX="1"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a90e2" />
+          </marker>
+          <marker
+            id="arrow-end"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a90e2" />
+          </marker>
+        </defs>
+        
         {/* Curved path for the connection */}
         <path
           className={`connection-line ${isMultiSelected ? 'multi-selected' : ''}`}
-          d={`M${fromX},${fromY} C${fromX + (toX - fromX) / 2},${fromY} ${toX - (toX - fromX) / 2},${toY} ${toX},${toY}`}
+          d={pathData}
+          markerStart={connection.startArrow ? "url(#arrow-start)" : ""}
+          markerEnd={connection.endArrow ? "url(#arrow-end)" : ""}
         />
+        
         {/* Clickable invisible line with larger stroke width */}
         <path
           className={`connection-hitbox ${isMultiSelected ? 'multi-selected' : ''}`}
-          d={`M${fromX},${fromY} C${fromX + (toX - fromX) / 2},${fromY} ${toX - (toX - fromX) / 2},${toY} ${toX},${toY}`}
+          d={pathData}
           onClick={handleClick}
         />
       </g>

@@ -38,7 +38,10 @@ const CanvasContainer = () => {
     setSelectedElements,
     clearAllSelections,
     copySelectedElements,
-    pasteElements
+    pasteElements,
+    resetZoom,
+    zoomIn,
+    zoomOut
   } = useCanvasContext();
 
   // State for selection box (rubber band)
@@ -184,7 +187,6 @@ const CanvasContainer = () => {
           if (typeof copySelectedElements === 'function') {
             const copied = copySelectedElements();
             if (copied) {
-              // Show copy feedback (toast notification managed by copySelectedElements function)
               console.log("Elements copied to clipboard");
             }
           } else {
@@ -224,6 +226,13 @@ const CanvasContainer = () => {
         setSelectedTextId(null);
       }
       
+      // Add keyboard shortcut for reset zoom: Ctrl+0 or Cmd+0
+      if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault(); // Prevent browser's text resizing
+        resetZoom();
+        console.log("Zoom reset to 100%");
+      }
+      
       // Add keyboard shortcut to escape/cancel selection: Escape key
       if (e.key === 'Escape') {
         clearAllSelections();
@@ -256,7 +265,8 @@ const CanvasContainer = () => {
     setSelectedElements,
     deleteSelectedElements,
     copySelectedElements,
-    pasteElements
+    pasteElements,
+    resetZoom
   ]);
 
   // Effect for handling delete mode actions
