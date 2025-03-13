@@ -36,7 +36,9 @@ const CanvasContainer = () => {
     setSelectedTextId,
     selectedElements,
     setSelectedElements,
-    clearAllSelections
+    clearAllSelections,
+    copySelectedElements,
+    pasteElements
   } = useCanvasContext();
 
   // State for selection box (rubber band)
@@ -164,13 +166,45 @@ const CanvasContainer = () => {
     return elementsDeleted;
   };
 
-  // Add keyboard event listener for backspace/delete key
+  // Add keyboard event listener for key commands
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Log the clipboard functions for debugging
+      console.log("Clipboard functions in event handler:", {
+        copyType: typeof copySelectedElements,
+        pasteType: typeof pasteElements
+      });
+
       // Check if we're in select mode and if backspace or delete key was pressed
       if (mode === 'select' && (e.key === 'Backspace' || e.key === 'Delete')) {
         if (deleteSelectedElements()) {
           e.preventDefault(); // Prevent browser back navigation
+        }
+      }
+      
+      // Add keyboard shortcut for copy: Ctrl+C or Cmd+C
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault();
+        if (mode === 'select') {
+          console.log("Copy shortcut detected"); // Debug
+          if (typeof copySelectedElements === 'function') {
+            copySelectedElements();
+          } else {
+            console.error("copySelectedElements is not a function!", copySelectedElements);
+          }
+        }
+      }
+      
+      // Add keyboard shortcut for paste: Ctrl+V or Cmd+V
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+        if (mode === 'select') {
+          console.log("Paste shortcut detected"); // Debug
+          if (typeof pasteElements === 'function') {
+            pasteElements();
+          } else {
+            console.error("pasteElements is not a function!", pasteElements);
+          }
         }
       }
       
@@ -216,7 +250,15 @@ const CanvasContainer = () => {
     rectangles, 
     postits, 
     texts, 
-    connections
+    connections,
+    clearAllSelections,
+    setSelectedRectId,
+    setSelectedPostitId,
+    setSelectedTextId,
+    setSelectedElements,
+    deleteSelectedElements,
+    copySelectedElements,
+    pasteElements
   ]);
 
   // Effect for handling delete mode actions
@@ -232,7 +274,7 @@ const CanvasContainer = () => {
       // Switch back to select mode after deleting
       setMode('select');
     }
-  }, [mode, selectedRectId, selectedPostitId, selectedTextId, selectedElements]);
+  }, [mode, selectedRectId, selectedPostitId, selectedTextId, selectedElements, setMode, deleteSelectedElements]);
 
   // Set up wheel event handler for the canvas
   useEffect(() => {

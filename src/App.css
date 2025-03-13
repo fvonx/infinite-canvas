@@ -313,7 +313,7 @@
 
 /* Add keyboard shortcut hints to status bar */
 .status-bar::after {
-  content: " | Shift+Click: Multi-select | Ctrl+A: Select All";
+  content: " | Shift+Click: Multi-select | Ctrl+A: Select All | Ctrl+C: Copy | Ctrl+V: Paste";
   font-style: italic;
 }
 
@@ -491,6 +491,25 @@ button.mode-delete.active {
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+}
+
+/* Toast notification for clipboard feedback */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  z-index: 1000;
+  animation: fadeOut 2s forwards;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Ensure app is responsive */
