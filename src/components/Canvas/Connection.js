@@ -41,7 +41,7 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
             connections: prev.connections.filter(id => id !== connection.id)
           }));
         } else {
-          // Add to multi-selection
+          // Add to multi-selection - preserve other selections
           setSelectedElements(prev => ({
             ...prev,
             connections: [...prev.connections, connection.id]

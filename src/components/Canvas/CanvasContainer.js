@@ -44,6 +44,23 @@ const CanvasContainer = () => {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 });
   
+  // Global flag to track if we're in the middle of dragging selected elements
+  const [isDraggingSelected, setIsDraggingSelected] = useState(false);
+  
+  // Listen for when elements are being dragged
+  useEffect(() => {
+    const handleElementDrag = (e) => {
+      // Set the dragging flag to true when a drag starts
+      setIsDraggingSelected(true);
+    };
+    
+    document.addEventListener('element-drag', handleElementDrag);
+    
+    return () => {
+      document.removeEventListener('element-drag', handleElementDrag);
+    };
+  }, []);
+  
   // Ref to store the current selection state
   const selectedElementsRef = useRef(selectedElements);
   
@@ -168,6 +185,11 @@ const CanvasContainer = () => {
           texts: texts.map(t => t.id),
           connections: connections.map(c => c.id)
         });
+        
+        // Clear individual selections to avoid conflicts
+        setSelectedRectId(null);
+        setSelectedPostitId(null);
+        setSelectedTextId(null);
       }
       
       // Add keyboard shortcut to escape/cancel selection: Escape key
@@ -278,144 +300,6 @@ const CanvasContainer = () => {
     };
   }, [canvasRef, transform, setTransform]);
 
-  // Handle touch events for mobile and touchpad
-  useEffect(() => {
-    const canvasElement = canvasRef.current;
-    if (!canvasElement) return;
-    
-    let lastTouchX = 0;
-    let lastTouchY = 0;
-    let initialTouchDistance = 0;
-    let initialScale = 1;
-    
-    const handleTouchStart = (e) => {
-      e.preventDefault();
-      
-      if (e.touches.length === 2) {
-        // Two-finger gesture - prepare for pinch/zoom or pan
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        
-        // Calculate initial distance between touches
-        initialTouchDistance = Math.hypot(
-          touch2.clientX - touch1.clientX,
-          touch2.clientY - touch1.clientY
-        );
-        
-        // Store center point
-        lastTouchX = (touch1.clientX + touch2.clientX) / 2;
-        lastTouchY = (touch1.clientY + touch2.clientY) / 2;
-        
-        // Store initial scale
-        initialScale = transform.scale;
-      }
-    };
-    
-    const handleTouchMove = (e) => {
-      e.preventDefault();
-      
-      if (e.touches.length === 2) {
-        // Two-finger gesture - handle pinch/zoom or pan
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        
-        // Calculate new center point
-        const currentCenterX = (touch1.clientX + touch2.clientX) / 2;
-        const currentCenterY = (touch1.clientY + touch2.clientY) / 2;
-        
-        // Pan based on center point movement
-        const deltaX = currentCenterX - lastTouchX;
-        const deltaY = currentCenterY - lastTouchY;
-        
-        // Apply pan
-        setTransform(prev => ({
-          ...prev,
-          x: prev.x + deltaX,
-          y: prev.y + deltaY
-        }));
-        
-        // Update last touch position
-        lastTouchX = currentCenterX;
-        lastTouchY = currentCenterY;
-        
-        // Calculate new distance between touches
-        const currentTouchDistance = Math.hypot(
-          touch2.clientX - touch1.clientX,
-          touch2.clientY - touch1.clientY
-        );
-        
-        // Determine scale change (pinch/zoom)
-        if (initialTouchDistance > 0) {
-          const scaleFactor = currentTouchDistance / initialTouchDistance;
-          
-          // Get cursor position in the canvas's coordinate system
-          const rect = canvasElement.getBoundingClientRect();
-          const canvasCenterX = currentCenterX - rect.left;
-          const canvasCenterY = currentCenterY - rect.top;
-          
-          // Convert to canvas coordinates
-          const canvasX = (canvasCenterX - transform.x) / transform.scale;
-          const canvasY = (canvasCenterY - transform.y) / transform.scale;
-          
-          // Calculate new scale
-          const newScale = Math.min(Math.max(initialScale * scaleFactor, 0.1), 5);
-          
-          // Adjust transform to zoom towards center point
-          const newX = canvasCenterX - canvasX * newScale;
-          const newY = canvasCenterY - canvasY * newScale;
-          
-          setTransform(prev => ({
-            ...prev,
-            x: newX,
-            y: newY,
-            scale: newScale
-          }));
-        }
-      }
-    };
-    
-    // Add touch event listeners
-    canvasElement.addEventListener('touchstart', handleTouchStart, { passive: false });
-    canvasElement.addEventListener('touchmove', handleTouchMove, { passive: false });
-    
-    return () => {
-      canvasElement.removeEventListener('touchstart', handleTouchStart);
-      canvasElement.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, [canvasRef, transform, setTransform]);
-
-  // Handle mouse down event to start selection box
-  const handleMouseDown = (e) => {
-    // Only proceed if it's a left-click directly on the canvas or content container
-    // and we're in select mode
-    if (
-      e.button === 0 && 
-      mode === 'select' && 
-      (e.target === canvasRef.current || e.target === contentRef.current)
-    ) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const startX = (e.clientX - rect.left - transform.x) / transform.scale;
-      const startY = (e.clientY - rect.top - transform.y) / transform.scale;
-      
-      // Check if shift key is pressed for additive selection
-      const isAdditive = e.shiftKey;
-      
-      // If not additive selection, clear previous selections
-      if (!isAdditive) {
-        clearAllSelections();
-      }
-      
-      setSelectionStart({ x: startX, y: startY });
-      setSelectionBox({
-        startX,
-        startY,
-        endX: startX,
-        endY: startY
-      });
-      setIsSelecting(true);
-    }
-  };
-
   // Function to update selection based on selection box
   const updateSelectionFromBox = (selectionLeft, selectionTop, selectionRight, selectionBottom, isAdditive) => {
     // Select rectangles within the selection box
@@ -501,6 +385,48 @@ const CanvasContainer = () => {
     
     // Set the new selection state
     setSelectedElements(newSelectedElements);
+    
+    // Clear individual selections when using multi-select to avoid conflicts
+    if (newSelectedElements.rectangles.length > 0 || 
+        newSelectedElements.postits.length > 0 || 
+        newSelectedElements.texts.length > 0 ||
+        newSelectedElements.connections.length > 0) {
+      setSelectedRectId(null);
+      setSelectedPostitId(null);
+      setSelectedTextId(null);
+    }
+  };
+
+  // Handle mouse down event to start selection box
+  const handleMouseDown = (e) => {
+    // Only proceed if it's a left-click directly on the canvas or content container
+    // and we're in select mode
+    if (
+      e.button === 0 && 
+      mode === 'select' && 
+      (e.target === canvasRef.current || e.target === contentRef.current)
+    ) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const startX = (e.clientX - rect.left - transform.x) / transform.scale;
+      const startY = (e.clientY - rect.top - transform.y) / transform.scale;
+      
+      // Check if shift key is pressed for additive selection
+      const isAdditive = e.shiftKey;
+      
+      // If not additive selection, clear previous selections unless shift is pressed
+      if (!isAdditive) {
+        clearAllSelections();
+      }
+      
+      setSelectionStart({ x: startX, y: startY });
+      setSelectionBox({
+        startX,
+        startY,
+        endX: startX,
+        endY: startY
+      });
+      setIsSelecting(true);
+    }
   };
 
   // Handle mouse move event for both connection drawing and selection box
@@ -577,6 +503,19 @@ const CanvasContainer = () => {
       setConnectionSource(null);
     }
     
+    // If we were dragging selected elements, don't clear the selection
+    // and reset the dragging flag after a delay
+    if (isDraggingSelected) {
+      // Keep the selection intact!
+      // Just reset the flag after a short delay to allow for other click events
+      setTimeout(() => {
+        setIsDraggingSelected(false);
+      }, 50);
+      
+      // Important: Exit early to prevent selection clearing
+      return;
+    }
+    
     // Finish selection box if we're selecting
     if (isSelecting) {
       // Determine if this was a small click or a real drag
@@ -631,6 +570,9 @@ const CanvasContainer = () => {
       setIsSelecting(false);
       setSelectionBox(null);
     }
+    
+    // Don't reset isDraggingSelected here to prevent selection loss
+    // when mouse briefly leaves canvas during dragging
   };
 
   // Create a canvas element when clicking on empty canvas

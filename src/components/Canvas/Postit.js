@@ -6,7 +6,9 @@ const Postit = ({ postit, isMultiSelected }) => {
   const {
     mode,
     transform,
+    selectedRectId,
     selectedPostitId,
+    selectedTextId,
     rectangles,
     postits,
     texts,
@@ -28,6 +30,12 @@ const Postit = ({ postit, isMultiSelected }) => {
 
   // Handle click on a post-it
   const handleClick = (e) => {
+    // Don't handle click events during drag operations
+    if (window.isMouseDragging) {
+      e.stopPropagation();
+      return;
+    }
+    
     e.stopPropagation();
     
     if (mode === 'delete') {
@@ -71,11 +79,16 @@ const Postit = ({ postit, isMultiSelected }) => {
             postits: prev.postits.filter(id => id !== postit.id)
           }));
         } else {
-          // Add to multi-selection
+          // Add to multi-selection - preserve existing selections
           setSelectedElements(prev => ({
             ...prev,
             postits: [...prev.postits, postit.id]
           }));
+          
+          // Clear the individual selection to avoid conflicts
+          if (selectedPostitId === postit.id) {
+            setSelectedPostitId(null);
+          }
         }
       } else {
         // Regular click - select only this post-it
@@ -90,12 +103,20 @@ const Postit = ({ postit, isMultiSelected }) => {
     if (mode === 'select') {
       e.stopPropagation();
       
-      // If this post-it is not part of the current selection,
-      // make it the only selected post-it
-      if (!isMultiSelected && selectedElements.postits.length > 0) {
-        clearAllSelections();
-        setSelectedPostitId(postit.id);
-      } else if (!isMultiSelected && selectedPostitId !== postit.id) {
+      // Store the current selection state to restore it after drag
+      const currentSelection = {
+        selectedRectId,
+        selectedPostitId,
+        selectedTextId,
+        selectedElements: {...selectedElements}
+      };
+      
+      // Global flag to indicate we're dragging
+      window.isMouseDragging = false;
+      
+      // If this post-it is not already selected and not part of a multi-selection,
+      // select it on mouse down unless shift is pressed
+      if (!isMultiSelected && selectedPostitId !== postit.id && !e.shiftKey) {
         clearAllSelections();
         setSelectedPostitId(postit.id);
       }
@@ -142,6 +163,9 @@ const Postit = ({ postit, isMultiSelected }) => {
       }
       
       const moveHandler = (moveEvent) => {
+        // Set dragging flag to true when movement starts
+        window.isMouseDragging = true;
+        
         const dx = (moveEvent.clientX - startX) / transform.scale;
         const dy = (moveEvent.clientY - startY) / transform.scale;
         
@@ -153,11 +177,11 @@ const Postit = ({ postit, isMultiSelected }) => {
               rects.map(r => {
                 if (selectedElements.rectangles.includes(r.id)) {
                   const initial = initialPositions.rectangles[r.id];
-                  return { 
+                  return initial ? { 
                     ...r, 
                     x: initial.x + dx, 
                     y: initial.y + dy 
-                  };
+                  } : r;
                 }
                 return r;
               })
@@ -170,11 +194,11 @@ const Postit = ({ postit, isMultiSelected }) => {
               items.map(p => {
                 if (selectedElements.postits.includes(p.id)) {
                   const initial = initialPositions.postits[p.id];
-                  return { 
+                  return initial ? { 
                     ...p, 
                     x: initial.x + dx, 
                     y: initial.y + dy 
-                  };
+                  } : p;
                 }
                 return p;
               })
@@ -187,11 +211,11 @@ const Postit = ({ postit, isMultiSelected }) => {
               items.map(t => {
                 if (selectedElements.texts.includes(t.id)) {
                   const initial = initialPositions.texts[t.id];
-                  return { 
+                  return initial ? { 
                     ...t, 
                     x: initial.x + dx, 
                     y: initial.y + dy 
-                  };
+                  } : t;
                 }
                 return t;
               })
@@ -200,21 +224,40 @@ const Postit = ({ postit, isMultiSelected }) => {
         } else {
           // Just move this post-it for single-move
           const initial = initialPositions.postits[postit.id];
-          setPostits(items => 
-            items.map(p => 
-              p.id === postit.id ? { 
-                ...p, 
-                x: initial.x + dx, 
-                y: initial.y + dy 
-              } : p
-            )
-          );
+          if (initial) {
+            setPostits(items => 
+              items.map(p => 
+                p.id === postit.id ? { 
+                  ...p, 
+                  x: initial.x + dx, 
+                  y: initial.y + dy 
+                } : p
+              )
+            );
+          }
         }
       };
       
-      const upHandler = () => {
+      const upHandler = (upEvent) => {
         window.removeEventListener('mousemove', moveHandler);
         window.removeEventListener('mouseup', upHandler);
+        
+        // If we've been dragging, restore the original selection state
+        // This is the key to fix the issue - always restore the multi-selection after dragging
+        if (window.isMouseDragging && isMultiSelected) {
+          // Reset the selection state to what it was before dragging
+          setSelectedElements(currentSelection.selectedElements);
+          
+          // Prevent the click handler from firing after drag
+          upEvent.stopPropagation();
+          
+          // Reset the dragging flag after a short delay
+          setTimeout(() => {
+            window.isMouseDragging = false;
+          }, 50);
+        } else {
+          window.isMouseDragging = false;
+        }
       };
       
       window.addEventListener('mousemove', moveHandler);
@@ -228,6 +271,17 @@ const Postit = ({ postit, isMultiSelected }) => {
     
     e.stopPropagation();
     
+    // Store the current selection state to restore it after resize
+    const currentSelection = {
+      selectedRectId,
+      selectedPostitId,
+      selectedTextId,
+      selectedElements: {...selectedElements}
+    };
+    
+    // Global flag to indicate we're dragging
+    window.isMouseDragging = false;
+    
     const startX = e.clientX;
     const startY = e.clientY;
     
@@ -239,6 +293,9 @@ const Postit = ({ postit, isMultiSelected }) => {
     const minHeight = 80;
     
     const resizeHandler = (moveEvent) => {
+      // Set dragging flag to true when movement starts
+      window.isMouseDragging = true;
+      
       const dx = (moveEvent.clientX - startX) / transform.scale;
       const dy = (moveEvent.clientY - startY) / transform.scale;
       
@@ -276,9 +333,25 @@ const Postit = ({ postit, isMultiSelected }) => {
       );
     };
     
-    const upHandler = () => {
+    const upHandler = (upEvent) => {
       window.removeEventListener('mousemove', resizeHandler);
       window.removeEventListener('mouseup', upHandler);
+      
+      // If we've been dragging, restore the original selection state
+      if (window.isMouseDragging && isMultiSelected) {
+        // Reset the selection state to what it was before resize
+        setSelectedElements(currentSelection.selectedElements);
+        
+        // Prevent the click handler from firing after resize
+        upEvent.stopPropagation();
+        
+        // Reset the dragging flag after a short delay
+        setTimeout(() => {
+          window.isMouseDragging = false;
+        }, 50);
+      } else {
+        window.isMouseDragging = false;
+      }
     };
     
     window.addEventListener('mousemove', resizeHandler);
