@@ -632,6 +632,85 @@ button.mode-delete.active {
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
+/* Add these styles to your App.css file */
+
+/* Anchor points styling */
+.anchor-point {
+  transform: scale(1);
+  pointer-events: none; /* Allow clicks to pass through to the elements */
+}
+
+.anchor-point.active {
+  transform: scale(1.3);
+  z-index: 10 !important;
+}
+
+/* Add a subtle pulsating animation for active anchor points */
+@keyframes pulse {
+  0% {
+    transform: scale(1.2);
+    box-shadow: 0 0 5px rgba(255, 107, 107, 0.7);
+  }
+  50% {
+    transform: scale(1.4);
+    box-shadow: 0 0 10px rgba(255, 107, 107, 0.9);
+  }
+  100% {
+    transform: scale(1.2);
+    box-shadow: 0 0 5px rgba(255, 107, 107, 0.7);
+  }
+}
+
+.anchor-point.active {
+  animation: pulse 1s infinite;
+}
+
+/* Add these styles to your App.css file or update existing styles */
+
+/* Connection line styling */
+.connection-line {
+  stroke: #4a90e2;
+  stroke-width: 2;
+  fill: none;
+  pointer-events: none;
+}
+
+.connection-line.temporary {
+  stroke-dasharray: 5, 5;
+  stroke: #ff6b6b;
+}
+
+.connection-line.multi-selected {
+  stroke: #4a90e2;
+  stroke-width: 3;
+}
+
+/* Invisible hitbox for better click detection */
+.connection-hitbox {
+  stroke: transparent;
+  stroke-width: 15;
+  fill: none;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.connection-hitbox.multi-selected {
+  stroke: rgba(74, 144, 226, 0.3);
+  stroke-width: 10;
+}
+
+/* Style for arrow markers */
+marker path {
+  fill: #4a90e2;
+  stroke: none;
+}
+
+/* Increase size and visibility of arrows */
+.connection-line {
+  marker-start-points: 0,0 10,5 0,10;
+  marker-end-points: 0,0 10,5 0,10;
+}
+
 /* Ensure app is responsive */
 @media (max-width: 768px) {
   .controls, .storage-controls {

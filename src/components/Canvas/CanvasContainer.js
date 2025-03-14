@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useCanvasContext } from '../../context/CanvasContext';
-import { findElementAtCoordinates } from '../../utils/connectionUtils';
+import { findElementAtCoordinates, findElementById, getEdgeMidpoints } from '../../utils/connectionUtils';
 import Rectangle from './Rectangle';
 import Postit from './Postit';
 import TextNode from './TextNode';
 import Connection from './Connection';
 import SelectionBox from './SelectionBox';
+import AnchorPoints from './AnchorPoints';
 
 const CanvasContainer = () => {
   const {
@@ -48,6 +49,10 @@ const CanvasContainer = () => {
   const [selectionBox, setSelectionBox] = useState(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 });
+  
+  // State for anchor points when drawing connections
+  const [hoverElement, setHoverElement] = useState(null);
+  const [hoverAnchorPoint, setHoverAnchorPoint] = useState(null);
   
   // Global flag to track if we're in the middle of dragging selected elements
   const [isDraggingSelected, setIsDraggingSelected] = useState(false);
@@ -447,6 +452,41 @@ const CanvasContainer = () => {
     }
   };
 
+  // Find nearest anchor point to the mouse cursor
+  const findNearestAnchorPoint = (element, mouseX, mouseY) => {
+    if (!element) return null;
+    
+    const edgePoints = getEdgeMidpoints(element.element);
+    let nearestPoint = null;
+    let nearestDistance = Infinity;
+    let nearestSide = null;
+    
+    // Calculate distance to each edge point
+    Object.entries(edgePoints).forEach(([side, point]) => {
+      const distance = Math.sqrt(
+        Math.pow(point.x - mouseX, 2) + Math.pow(point.y - mouseY, 2)
+      );
+      
+      // Update nearest point if this one is closer
+      if (distance < nearestDistance && distance < 30) { // 30px snap distance
+        nearestDistance = distance;
+        nearestPoint = point;
+        nearestSide = side;
+      }
+    });
+    
+    if (nearestPoint) {
+      return {
+        point: nearestPoint,
+        side: nearestSide,
+        element: element.element,
+        type: element.type
+      };
+    }
+    
+    return null;
+  };
+
   // Handle mouse down event to start selection box
   const handleMouseDown = (e) => {
     // Only proceed if it's a left-click directly on the canvas or content container
@@ -481,21 +521,79 @@ const CanvasContainer = () => {
 
   // Handle mouse move event for both connection drawing and selection box
   const handleMouseMove = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left - transform.x) / transform.scale;
+    const mouseY = (e.clientY - rect.top - transform.y) / transform.scale;
+    
     // Update temporary connection if in connect mode
     if (startConnection) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const mouseX = (e.clientX - rect.left - transform.x) / transform.scale;
-      const mouseY = (e.clientY - rect.top - transform.y) / transform.scale;
+      // Find element under mouse cursor for potential connection
+      const collections = { rectangles, postits, texts };
+      const hoveredElement = findElementAtCoordinates(
+        mouseX, 
+        mouseY,
+        collections,
+        startConnection.id,
+        startConnection.type
+      );
       
-      setTempConnection({
-        from: startConnection,
-        to: { id: 'temp', x: mouseX, y: mouseY, width: 10, height: 10 }
-      });
+      // Update hover element state for showing anchor points
+      if (hoveredElement && (!hoverElement || hoveredElement.element.id !== hoverElement.element.id)) {
+        setHoverElement(hoveredElement);
+        setHoverAnchorPoint(null);
+      } else if (!hoveredElement && hoverElement) {
+        setHoverElement(null);
+        setHoverAnchorPoint(null);
+      }
+      
+      // If hovering over a potential target element, find nearest anchor point
+      if (hoverElement) {
+        const nearestAnchor = findNearestAnchorPoint(hoverElement, mouseX, mouseY);
+        
+        // Update the hover anchor point for snapping
+        if (nearestAnchor) {
+          setHoverAnchorPoint(nearestAnchor);
+          
+          // Update the temporary connection with the snapped point
+          const sourceElement = findElementById(
+            startConnection.id,
+            startConnection.type,
+            collections
+          );
+          
+          if (sourceElement) {
+            // If we have a source element and a target anchor point, create a snapped temp connection
+            setTempConnection({
+              from: startConnection,
+              to: { 
+                id: 'temp', 
+                x: nearestAnchor.point.x, 
+                y: nearestAnchor.point.y,
+                targetElement: hoverElement.element,
+                targetSide: nearestAnchor.side,
+                type: hoverElement.type
+              }
+            });
+          }
+        } else {
+          // If no anchor point is close enough, just follow the mouse
+          setHoverAnchorPoint(null);
+          setTempConnection({
+            from: startConnection,
+            to: { id: 'temp', x: mouseX, y: mouseY, width: 10, height: 10 }
+          });
+        }
+      } else {
+        // If not over any element, just follow the mouse
+        setTempConnection({
+          from: startConnection,
+          to: { id: 'temp', x: mouseX, y: mouseY, width: 10, height: 10 }
+        });
+      }
     }
     
     // Update selection box if we're in the process of selecting
     if (isSelecting && mode === 'select') {
-      const rect = canvasRef.current.getBoundingClientRect();
       const currentX = (e.clientX - rect.left - transform.x) / transform.scale;
       const currentY = (e.clientY - rect.top - transform.y) / transform.scale;
       
@@ -523,34 +621,53 @@ const CanvasContainer = () => {
   const handleMouseUp = (e) => {
     // Complete connection if in connect mode
     if (startConnection) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const mouseX = (e.clientX - rect.left - transform.x) / transform.scale;
-      const mouseY = (e.clientY - rect.top - transform.y) / transform.scale;
-      
-      const collections = { rectangles, postits, texts };
-      const targetElement = findElementAtCoordinates(
-        mouseX, 
-        mouseY,
-        collections,
-        startConnection.id,
-        startConnection.type
-      );
-      
-      if (targetElement) {
+      // If we have a snapped anchor point, use it for the connection
+      if (hoverAnchorPoint) {
         const newConnection = {
           id: Date.now(),
           from: startConnection.id,
-          to: targetElement.element.id,
+          to: hoverAnchorPoint.element.id,
           sourceType: startConnection.type,
-          targetType: targetElement.type
+          targetType: hoverAnchorPoint.type,
+          fromSide: startConnection.side,
+          toSide: hoverAnchorPoint.side
         };
         
         setConnections([...connections, newConnection]);
+      } else {
+        // Traditional method as fallback
+        const rect = canvasRef.current.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left - transform.x) / transform.scale;
+        const mouseY = (e.clientY - rect.top - transform.y) / transform.scale;
+        
+        const collections = { rectangles, postits, texts };
+        const targetElement = findElementAtCoordinates(
+          mouseX, 
+          mouseY,
+          collections,
+          startConnection.id,
+          startConnection.type
+        );
+        
+        if (targetElement) {
+          const newConnection = {
+            id: Date.now(),
+            from: startConnection.id,
+            to: targetElement.element.id,
+            sourceType: startConnection.type,
+            targetType: targetElement.type
+          };
+          
+          setConnections([...connections, newConnection]);
+        }
       }
       
+      // Clear connection state
       setStartConnection(null);
       setTempConnection(null);
       setConnectionSource(null);
+      setHoverElement(null);
+      setHoverAnchorPoint(null);
     }
     
     // If we were dragging selected elements, don't clear the selection
@@ -612,6 +729,8 @@ const CanvasContainer = () => {
       setStartConnection(null);
       setTempConnection(null);
       setConnectionSource(null);
+      setHoverElement(null);
+      setHoverAnchorPoint(null);
     }
     
     // Don't clear selection when mouse leaves the canvas
@@ -664,7 +783,8 @@ const CanvasContainer = () => {
           y,
           width: 150,
           height: 150,
-          content: 'New Post-it'
+          content: 'New Post-it',
+          backgroundColor: '#FFEFB5' // Default post-it color
         };
         
         setPostits([...postits, newPostit]);
@@ -700,7 +820,6 @@ const CanvasContainer = () => {
           
           // Clear any existing selections
           clearAllSelections();
-          
           // Select the newly created text node
           setSelectedTextId(newText.id);
           
@@ -758,6 +877,32 @@ const CanvasContainer = () => {
         
         {/* Render connection lines */}
         <svg className="connections-svg" width="100%" height="100%" style={{ overflow: 'visible' }}>
+          {/* Arrow marker definitions */}
+          <defs>
+            <marker
+              id="arrow-start"
+              viewBox="0 0 10 10"
+              refX="1"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a90e2" />
+            </marker>
+            <marker
+              id="arrow-end"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a90e2" />
+            </marker>
+          </defs>
+          
           {connections.map((conn, index) => (
             <Connection 
               key={index} 
@@ -771,6 +916,15 @@ const CanvasContainer = () => {
             <Connection temporary connection={tempConnection} />
           )}
         </svg>
+        
+        {/* Render anchor points for connection target */}
+        {hoverElement && mode === 'connect' && (
+          <AnchorPoints 
+            element={hoverElement.element} 
+            type={hoverElement.type}
+            activeAnchor={hoverAnchorPoint?.side}
+          />
+        )}
         
         {/* Render selection box (rubber band) if active */}
         {selectionBox && <SelectionBox selectionBox={selectionBox} />}
