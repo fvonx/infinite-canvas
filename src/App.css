@@ -79,7 +79,7 @@
   justify-content: center;
   user-select: none;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 2;
+  z-index: 10;
 }
 
 .rectangle.selected {
@@ -111,7 +111,7 @@
   justify-content: center;
   user-select: none;
   box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.15);
-  z-index: 2;
+  z-index: 10;
   transform: rotate(-1deg); /* Slight rotation for post-it look */
 }
 
@@ -141,7 +141,7 @@
   padding: 2px 4px;
   display: inline-block;
   user-select: none;
-  z-index: 2;
+  z-index: 10;
   word-wrap: break-word;
   max-width: 300px;
   min-width: 30px;
@@ -245,9 +245,9 @@
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 1;
-  pointer-events: none; /* Allow clicks to pass through to the canvas by default */
-  overflow: visible; /* Allow SVG content to be visible outside the container */
+  z-index: 20; /* Increased z-index to be above canvas elements */
+  pointer-events: none;
+  overflow: visible;
 }
 
 .connection-line {
@@ -269,6 +269,7 @@
   fill: none;
   pointer-events: all;
   cursor: pointer;
+  z-index: 30;
 }
 
 /* Selection box (rubber band) styling */
@@ -638,6 +639,7 @@ button.mode-delete.active {
 .anchor-point {
   transform: scale(1);
   pointer-events: none; /* Allow clicks to pass through to the elements */
+  z-index: 25;
 }
 
 .anchor-point.active {
@@ -648,20 +650,24 @@ button.mode-delete.active {
 /* Add a subtle pulsating animation for active anchor points */
 @keyframes pulse {
   0% {
-    transform: scale(1.2);
-    box-shadow: 0 0 5px rgba(255, 107, 107, 0.7);
+    opacity: 0.7;
+    r: 6;
   }
   50% {
-    transform: scale(1.4);
-    box-shadow: 0 0 10px rgba(255, 107, 107, 0.9);
+    opacity: 1;
+    r: 8;
   }
   100% {
-    transform: scale(1.2);
-    box-shadow: 0 0 5px rgba(255, 107, 107, 0.7);
+    opacity: 0.7;
+    r: 6;
   }
 }
 
 .anchor-point.active {
+  fill: #ff6b6b;
+  stroke: white;
+  stroke-width: 2;
+  filter: drop-shadow(0px 0px 3px rgba(255, 107, 107, 0.7));
   animation: pulse 1s infinite;
 }
 
@@ -721,5 +727,43 @@ marker path {
   button {
     padding: 6px 12px;
     font-size: 12px;
+  }
+}
+
+/* Make sure endpoint handles are always on top */
+.connection-endpoint {
+  cursor: move;
+  filter: drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.8));
+  pointer-events: all !important;
+  z-index: 1000 !important;
+}
+
+.connection-endpoint:hover {
+  fill: #ff6b6b;
+  r: 10;
+  transition: r 0.1s ease, fill 0.1s ease;
+}
+
+/* Endpoint handles container should be above everything */
+.endpoint-handles {
+  pointer-events: all;
+  z-index: 1000;
+}
+
+/* Style for selected connections */
+.connection-line.selected {
+  stroke-width: 3;
+  stroke: #4a90e2;
+}
+
+/* Style for connection being modified */
+.connection-line.endpoint-dragging {
+  stroke-dasharray: 5, 3;
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -8;
   }
 }

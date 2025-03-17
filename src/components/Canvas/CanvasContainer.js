@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useCanvasContext } from '../../context/CanvasContext';
-import { findElementAtCoordinates, findElementById, getEdgeMidpoints } from '../../utils/connectionUtils';
+import { findElementAtCoordinates, findElementById, getEdgeMidpoints, findBestConnectionSides } from '../../utils/connectionUtils';
 import Rectangle from './Rectangle';
 import Postit from './Postit';
 import TextNode from './TextNode';
@@ -623,14 +623,37 @@ const CanvasContainer = () => {
     if (startConnection) {
       // If we have a snapped anchor point, use it for the connection
       if (hoverAnchorPoint) {
+        // Determine sides for the connection
+        const sourceEdges = getEdgeMidpoints(
+          findElementById(startConnection.id, startConnection.type, { rectangles, postits, texts })
+        );
+        
+        // Find the side for the source element
+        let fromSide = startConnection.side;
+        if (!fromSide) {
+          // If not provided, derive it from the source element
+          const fromElement = findElementById(
+            startConnection.id,
+            startConnection.type,
+            { rectangles, postits, texts }
+          );
+          
+          const toElement = hoverAnchorPoint.element;
+          const bestSides = findBestConnectionSides(fromElement, toElement);
+          fromSide = bestSides.fromSide;
+        }
+        
+        // Create a new connection with explicit sides
         const newConnection = {
           id: Date.now(),
           from: startConnection.id,
           to: hoverAnchorPoint.element.id,
           sourceType: startConnection.type,
           targetType: hoverAnchorPoint.type,
-          fromSide: startConnection.side,
-          toSide: hoverAnchorPoint.side
+          fromSide: fromSide,
+          toSide: hoverAnchorPoint.side,
+          startArrow: false,
+          endArrow: true
         };
         
         setConnections([...connections, newConnection]);
@@ -650,12 +673,26 @@ const CanvasContainer = () => {
         );
         
         if (targetElement) {
+          // Determine sides for the connection
+          const fromElement = findElementById(
+            startConnection.id,
+            startConnection.type,
+            collections
+          );
+          
+          const bestSides = findBestConnectionSides(fromElement, targetElement.element);
+          
+          // Create the connection with explicit sides
           const newConnection = {
             id: Date.now(),
             from: startConnection.id,
             to: targetElement.element.id,
             sourceType: startConnection.type,
-            targetType: targetElement.type
+            targetType: targetElement.type,
+            fromSide: bestSides.fromSide,
+            toSide: bestSides.toSide,
+            startArrow: false,
+            endArrow: true
           };
           
           setConnections([...connections, newConnection]);
@@ -882,18 +919,18 @@ const CanvasContainer = () => {
             <marker
               id="arrow-start"
               viewBox="0 0 10 10"
-              refX="1"
+              refX="9"
               refY="5"
               markerWidth="6"
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a90e2" />
+              <path d="M 10 5 L 0 0 L 0 10 z" fill="#4a90e2" />
             </marker>
             <marker
               id="arrow-end"
               viewBox="0 0 10 10"
-              refX="9"
+              refX="0"
               refY="5"
               markerWidth="6"
               markerHeight="6"
