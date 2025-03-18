@@ -21,6 +21,7 @@ const Postit = ({ postit, isMultiSelected }) => {
     setSelectedPostitId,
     setSelectedTextId,
     setStartConnection,
+    setTempConnection,
     setConnectionSource,
     setMode,
     selectedElements,
@@ -62,11 +63,32 @@ const Postit = ({ postit, isMultiSelected }) => {
       setMode('select');
     } else if (mode === 'connect') {
       // Start a new connection from this post-it
+      console.log("Starting connection from post-it:", postit.id);
+      
+      // Very important: Set connection information
       setStartConnection({
         id: postit.id,
         type: 'postit'
       });
+      
       setConnectionSource('postit');
+      
+      // Initialize temporary connection with current mouse position
+      const canvasRect = document.querySelector('.canvas-container').getBoundingClientRect();
+      const mouseX = (e.clientX - canvasRect.left - transform.x) / transform.scale;
+      const mouseY = (e.clientY - canvasRect.top - transform.y) / transform.scale;
+      
+      setTempConnection({
+        from: {
+          id: postit.id,
+          type: 'postit'
+        },
+        to: { 
+          id: 'temp', 
+          x: mouseX, 
+          y: mouseY 
+        }
+      });
     } else if (mode === 'select') {
       // In select mode, handle selection behavior
       

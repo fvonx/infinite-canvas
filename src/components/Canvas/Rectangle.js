@@ -21,6 +21,7 @@ const Rectangle = ({ rect, isMultiSelected }) => {
     setSelectedPostitId,
     setSelectedTextId,
     setStartConnection,
+    setTempConnection,
     setConnectionSource,
     setMode,
     selectedElements,
@@ -62,11 +63,32 @@ const Rectangle = ({ rect, isMultiSelected }) => {
       setMode('select');
     } else if (mode === 'connect') {
       // Start a new connection from this rectangle
+      console.log("Starting connection from rectangle:", rect.id);
+      
+      // Very important: Set connection information
       setStartConnection({
         id: rect.id,
         type: 'rectangle'
       });
+      
       setConnectionSource('rectangle');
+      
+      // Initialize temporary connection with current mouse position
+      const canvasRect = document.querySelector('.canvas-container').getBoundingClientRect();
+      const mouseX = (e.clientX - canvasRect.left - transform.x) / transform.scale;
+      const mouseY = (e.clientY - canvasRect.top - transform.y) / transform.scale;
+      
+      setTempConnection({
+        from: {
+          id: rect.id,
+          type: 'rectangle'
+        },
+        to: { 
+          id: 'temp', 
+          x: mouseX, 
+          y: mouseY 
+        }
+      });
     } else if (mode === 'select') {
       // In select mode, handle selection behavior
       

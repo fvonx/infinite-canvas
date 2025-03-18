@@ -21,6 +21,7 @@ const TextNode = ({ text, isMultiSelected }) => {
     setSelectedPostitId,
     setSelectedTextId,
     setStartConnection,
+    setTempConnection,
     setConnectionSource,
     setMode,
     selectedElements,
@@ -62,11 +63,32 @@ const TextNode = ({ text, isMultiSelected }) => {
       setMode('select');
     } else if (mode === 'connect') {
       // Start a new connection from this text node
+      console.log("Starting connection from text node:", text.id);
+      
+      // Very important: Set connection information
       setStartConnection({
         id: text.id,
         type: 'text'
       });
+      
       setConnectionSource('text');
+      
+      // Initialize temporary connection with current mouse position
+      const canvasRect = document.querySelector('.canvas-container').getBoundingClientRect();
+      const mouseX = (e.clientX - canvasRect.left - transform.x) / transform.scale;
+      const mouseY = (e.clientY - canvasRect.top - transform.y) / transform.scale;
+      
+      setTempConnection({
+        from: {
+          id: text.id,
+          type: 'text'
+        },
+        to: { 
+          id: 'temp', 
+          x: mouseX, 
+          y: mouseY 
+        }
+      });
     } else if (mode === 'select') {
       // In select mode, handle selection behavior
       

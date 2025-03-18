@@ -30,7 +30,7 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
   const [hoverElement, setHoverElement] = useState(null);
   const [hoverAnchor, setHoverAnchor] = useState(null);
   
-  // Ref for tracking if component is mounted
+  // Refs for cleanup
   const isMounted = useRef(true);
   
   useEffect(() => {
@@ -41,7 +41,7 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
 
   // Handle connection click
   const handleClick = (e) => {
-    if (isDragging) return; // Don't handle clicks during dragging
+    if (window.isDragging) return;
     
     e.stopPropagation();
     
@@ -105,6 +105,9 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
       connections: [connection.id]
     });
     
+    // Set global drag flag to prevent click handlers
+    window.isDragging = true;
+    
     // Start dragging
     setIsDragging(true);
     setDragEndpoint(endpoint);
@@ -115,12 +118,13 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
     const mouseY = (e.clientY - rect.top - transform.y) / transform.scale;
     setDragPosition({ x: mouseX, y: mouseY });
     
-    // Add global event listeners for drag operations
+    // Initialize for handle element finding
+    let hoveredEl = null;
+    let hoveredAnchor = null;
+    
     const handleMouseMove = (moveEvent) => {
       moveEvent.preventDefault();
       moveEvent.stopPropagation();
-      
-      if (!isMounted.current) return;
       
       // Get mouse position
       const canvasRect = canvasRef.current.getBoundingClientRect();
@@ -142,6 +146,9 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
         excludeId,
         excludeType
       );
+      
+      // Store reference for mouseUp handler
+      hoveredEl = hoveredElement;
       
       // Update hover element state
       if (hoveredElement) {
@@ -167,18 +174,23 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
         });
         
         if (nearestPoint) {
-          setHoverAnchor({
+          const anchor = {
             point: nearestPoint,
             side: nearestSide,
             element: hoveredElement.element,
             type: hoveredElement.type
-          });
+          };
+          setHoverAnchor(anchor);
+          hoveredAnchor = anchor; // Store reference for mouseUp handler
         } else {
           setHoverAnchor(null);
+          hoveredAnchor = null;
         }
       } else {
         setHoverElement(null);
         setHoverAnchor(null);
+        hoveredEl = null;
+        hoveredAnchor = null;
       }
     };
     
@@ -187,39 +199,41 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       
-      if (!isMounted.current) return;
-      
-      // If hovering over an anchor point, update the connection
-      if (hoverAnchor) {
-        console.log(`Dropping connection endpoint on ${hoverAnchor.side} of element ${hoverAnchor.element.id}`);
+      // If we have a valid anchor point, update the connection
+      if (hoveredAnchor) {
+        console.log(`Dropping connection endpoint on ${hoveredAnchor.side} of element ${hoveredAnchor.element.id}`);
         
-        setConnections(prevConnections => 
-          prevConnections.map(conn => {
-            if (conn.id === connection.id) {
-              if (dragEndpoint === 'from') {
-                // Update source endpoint
-                return {
-                  ...conn,
-                  from: hoverAnchor.element.id,
-                  sourceType: hoverAnchor.type,
-                  fromSide: hoverAnchor.side
-                };
-              } else {
-                // Update target endpoint
-                return {
-                  ...conn,
-                  to: hoverAnchor.element.id,
-                  targetType: hoverAnchor.type,
-                  toSide: hoverAnchor.side
-                };
-              }
-            }
-            return conn;
-          })
-        );
+        // Create a copy of all connections
+        const updatedConnections = [...connections];
+        
+        // Find and update the specific connection
+        const connIndex = updatedConnections.findIndex(conn => conn.id === connection.id);
+        
+        if (connIndex !== -1) {
+          const updatedConnection = {...updatedConnections[connIndex]};
+          
+          if (endpoint === 'from') {
+            // Update source endpoint
+            updatedConnection.from = hoveredAnchor.element.id;
+            updatedConnection.sourceType = hoveredAnchor.type;
+            updatedConnection.fromSide = hoveredAnchor.side;
+          } else {
+            // Update target endpoint
+            updatedConnection.to = hoveredAnchor.element.id;
+            updatedConnection.targetType = hoveredAnchor.type;
+            updatedConnection.toSide = hoveredAnchor.side;
+          }
+          
+          // Replace the connection in the array
+          updatedConnections[connIndex] = updatedConnection;
+          
+          // Update all connections
+          setConnections(updatedConnections);
+        }
       }
       
-      // Reset drag state
+      // Reset states AFTER updating connection
+      window.isDragging = false;
       setIsDragging(false);
       setDragEndpoint(null);
       setDragPosition(null);
@@ -228,7 +242,7 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
     };
     
     // Add event listeners to capture mouse movements anywhere on the screen
-    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mousemove', handleMouseMove, { passive: false });
     document.addEventListener('mouseup', handleMouseUp);
   };
 
@@ -256,7 +270,7 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
     const fromEdges = getEdgeMidpoints(fromElement);
     const toEdges = getEdgeMidpoints(toElement);
     
-    // Ensure we have fromSide and toSide
+    // Ensure we have fromSide and toSide with proper defaults
     const fromSide = connection.fromSide || 'right';
     const toSide = connection.toSide || 'left';
     
@@ -282,6 +296,7 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
           // Snap to anchor point if hovering over one
           connectionPoints.fromX = hoverAnchor.point.x;
           connectionPoints.fromY = hoverAnchor.point.y;
+          connectionPoints.fromSide = hoverAnchor.side;
         } else {
           // Follow mouse otherwise
           connectionPoints.fromX = dragPosition.x;
@@ -293,6 +308,7 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
           // Snap to anchor point if hovering over one
           connectionPoints.toX = hoverAnchor.point.x;
           connectionPoints.toY = hoverAnchor.point.y;
+          connectionPoints.toSide = hoverAnchor.side;
         } else {
           // Follow mouse otherwise
           connectionPoints.toX = dragPosition.x;
@@ -300,40 +316,9 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
         }
       }
     }
-    
-    // Apply offset to keep arrows visible
-    const offsetPath = (points) => {
-      // Calculate unit vector along the direction
-      const dx = points.toX - points.fromX;
-      const dy = points.toY - points.fromY;
-      const length = Math.sqrt(dx * dx + dy * dy);
-      
-      // Offset amount - how far to move start and end points
-      const offsetStart = 5;
-      const offsetEnd = 12; // Increased offset for the end point
-      
-      if (length > 0) {
-        const ux = dx / length;
-        const uy = dy / length;
-        
-        // Create offset points
-        return {
-          ...points,
-          fromX: points.fromX + ux * offsetStart,
-          fromY: points.fromY + uy * offsetStart,
-          toX: points.toX - ux * offsetEnd,
-          toY: points.toY - uy * offsetEnd
-        };
-      }
-      
-      return points;
-    };
-    
-    // Apply offset to move connection points slightly away from elements
-    const offsetPoints = offsetPath(connectionPoints);
-    
+
     // Create the SVG path for the connection
-    const pathData = createConnectionPath(offsetPoints);
+    const pathData = createConnectionPath(connectionPoints);
     
     // Get the specific colors for this connection
     const strokeColor = isMultiSelected ? "#4a90e2" : "#4a90e2";
@@ -349,65 +334,26 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
     // Only show endpoint handles in select mode and when the connection is selected
     const showEndpointHandles = !temporary && mode === 'select' && isSelected;
 
-    // Setup separate SVG for endpoint handles to ensure they're above other elements
-    const endpointHandles = showEndpointHandles && (
-      <g className="endpoint-handles" style={{ pointerEvents: 'all', zIndex: 1000 }}>
-        {/* Source endpoint handle */}
-        <circle
-          cx={fromPoint.x}
-          cy={fromPoint.y}
-          r="8"
-          className="connection-endpoint"
-          fill="#4a90e2"
-          stroke="white"
-          strokeWidth="2"
-          style={{ 
-            cursor: 'move', 
-            pointerEvents: 'all',
-            filter: 'drop-shadow(0px 0px 3px rgba(0,0,0,0.5))'
-          }}
-          onMouseDown={(e) => handleEndpointMouseDown(e, 'from')}
-        />
-        
-        {/* Target endpoint handle */}
-        <circle
-          cx={toPoint.x}
-          cy={toPoint.y}
-          r="8"
-          className="connection-endpoint"
-          fill="#4a90e2"
-          stroke="white"
-          strokeWidth="2"
-          style={{ 
-            cursor: 'move', 
-            pointerEvents: 'all',
-            filter: 'drop-shadow(0px 0px 3px rgba(0,0,0,0.5))'
-          }}
-          onMouseDown={(e) => handleEndpointMouseDown(e, 'to')}
-        />
-      </g>
-    );
-    
     return (
       <>
         <g className="connection-group">
-          {/* Arrow marker definitions - Define them per connection for better control */}
+          {/* Arrow marker definitions */}
           <defs>
             <marker
               id={startArrowId}
               viewBox="0 0 10 10"
-              refX="9"
+              refX="3"
               refY="5"
               markerWidth="6"
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 10 5 L 0 0 L 0 10 z" fill={arrowColor} />
+              <path d="M 0 0 L 10 5 L 0 10 z" fill={arrowColor} />
             </marker>
             <marker
               id={endArrowId}
               viewBox="0 0 10 10"
-              refX="0"
+              refX="7"
               refY="5"
               markerWidth="6"
               markerHeight="6"
@@ -424,7 +370,8 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
             stroke={strokeColor}
             strokeWidth="2"
             markerStart={connection.startArrow ? `url(#${startArrowId})` : ""}
-            markerEnd={connection.endArrow ? `url(#${endArrowId})` : ""}
+            markerEnd={connection.endArrow !== false ? `url(#${endArrowId})` : ""}
+            fill="none"
             style={{ pointerEvents: 'none' }}
           />
           
@@ -432,45 +379,86 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
           <path
             className={`connection-hitbox ${isMultiSelected ? 'multi-selected' : ''}`}
             d={pathData}
+            stroke="transparent"
+            strokeWidth="15"
+            fill="none"
             onClick={handleClick}
           />
         </g>
         
         {/* Render anchor points on hover target during dragging */}
         {isDragging && hoverElement && (
-          <g className="anchor-points" style={{ pointerEvents: 'none' }}>
+          <g className="anchor-points" pointerEvents="none">
             {Object.entries(getEdgeMidpoints(hoverElement.element)).map(([side, point]) => (
               <circle
                 key={side}
                 cx={point.x}
                 cy={point.y}
-                r="6"
-                className={`anchor-point ${hoverAnchor && hoverAnchor.side === side ? 'active' : ''}`}
+                r={hoverAnchor && hoverAnchor.side === side ? "8" : "6"}
                 fill={hoverAnchor && hoverAnchor.side === side ? '#ff6b6b' : '#4a90e2'}
                 opacity={hoverAnchor && hoverAnchor.side === side ? 1 : 0.5}
                 stroke="white"
                 strokeWidth="2"
-                style={{ pointerEvents: 'none' }}
+                pointerEvents="none"
               />
             ))}
           </g>
         )}
         
-        {/* Render endpoint handles in a separate group to ensure they're above everything */}
-        {endpointHandles}
+        {/* Source endpoint handle */}
+        {showEndpointHandles && (
+          <>
+            <circle
+              cx={fromPoint.x}
+              cy={fromPoint.y}
+              r="8"
+              fill="#4a90e2"
+              stroke="white"
+              strokeWidth="2"
+              style={{ 
+                cursor: 'move',
+                pointerEvents: 'all'
+              }}
+              onMouseDown={(e) => handleEndpointMouseDown(e, 'from')}
+            />
+            
+            {/* Target endpoint handle */}
+            <circle
+              cx={toPoint.x}
+              cy={toPoint.y}
+              r="8"
+              fill="#4a90e2"
+              stroke="white"
+              strokeWidth="2"
+              style={{ 
+                cursor: 'move',
+                pointerEvents: 'all'
+              }}
+              onMouseDown={(e) => handleEndpointMouseDown(e, 'to')}
+            />
+          </>
+        )}
       </>
     );
   } 
   // For temporary connection during drawing
   else {
     // Find source element
-    let sourceType = connection.sourceType;
-    let sourceId = connection.from;
+    let sourceType, sourceId;
     
-    // If sourceType is not provided, try to infer it from the object
-    if (!sourceType && typeof connection.from === 'object') {
+    // Handle different ways the connection source might be specified
+    if (typeof connection.from === 'object') {
       sourceType = connection.from.type;
       sourceId = connection.from.id;
+    } else {
+      sourceType = connection.sourceType;
+      sourceId = connection.from;
+    }
+    
+    // Make sure we have a valid source element
+    if (!sourceId || !sourceType) {
+      console.error("Invalid source for temporary connection", connection);
+      return null;
     }
     
     const fromElement = findElementById(
@@ -479,87 +467,47 @@ const Connection = ({ connection, temporary = false, isMultiSelected = false }) 
       collections
     );
     
-    if (!fromElement || !connection.to) return null;
+    // Make sure we have the source element and target position
+    if (!fromElement || !connection.to) {
+      return null;
+    }
     
     // For temporary connections during drawing
     let pathData;
-    let fromSide;
     
-    // If this is a temporary connection with a target element and side info
-    if (connection.to.targetElement && connection.to.targetSide) {
-      // Create a custom target "element" from the endpoint
-      const toElement = {
-        x: connection.to.x - 5, // Create a small virtual element
-        y: connection.to.y - 5,
-        width: 10,
-        height: 10
-      };
-      
-      // Get source edge midpoints to determine which side the connection is coming from
-      const sourceMidpoints = getEdgeMidpoints(fromElement);
-      let minDistance = Infinity;
-      
-      // Find the closest edge point on source to the target
-      Object.entries(sourceMidpoints).forEach(([side, point]) => {
-        const distance = Math.sqrt(
-          Math.pow(point.x - connection.to.x, 2) + 
-          Math.pow(point.y - connection.to.y, 2)
-        );
-        if (distance < minDistance) {
-          minDistance = distance;
-          fromSide = side;
-        }
-      });
-      
-      // Get the edge midpoints
-      const fromEdges = getEdgeMidpoints(fromElement);
-      const fromPoint = fromEdges[fromSide];
-      
-      // For target, we use the exact point as we're drawing to a precise location
-      const connectionPoints = {
-        fromX: fromPoint.x,
-        fromY: fromPoint.y,
-        toX: connection.to.x,
-        toY: connection.to.y,
-        fromSide,
-        toSide: connection.to.targetSide
-      };
-      
-      // Create path
-      pathData = createConnectionPath(connectionPoints);
+    // Get edge midpoints for source element
+    const fromEdges = getEdgeMidpoints(fromElement);
+    
+    // Determine best side based on direction to mouse/target
+    const targetX = connection.to.x || connection.to.targetX || 0;
+    const targetY = connection.to.y || connection.to.targetY || 0;
+    
+    const dx = targetX - (fromElement.x + fromElement.width/2);
+    const dy = targetY - (fromElement.y + fromElement.height/2);
+    
+    let fromSide;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Horizontal dominance
+      fromSide = dx > 0 ? 'right' : 'left';
     } else {
-      // Simpler case - just draw to mouse position
-      // Get edge midpoints
-      const fromEdges = getEdgeMidpoints(fromElement);
-      
-      // Determine best side
-      // For temporary connections, we'll calculate based on direction to mouse
-      const dx = connection.to.x - (fromElement.x + fromElement.width/2);
-      const dy = connection.to.y - (fromElement.y + fromElement.height/2);
-      
-      if (Math.abs(dx) > Math.abs(dy)) {
-        // Horizontal dominance
-        fromSide = dx > 0 ? 'right' : 'left';
-      } else {
-        // Vertical dominance
-        fromSide = dy > 0 ? 'bottom' : 'top';
-      }
-      
-      const fromPoint = fromEdges[fromSide];
-      
-      // Direct point to mouse
-      const connectionPoints = {
-        fromX: fromPoint.x,
-        fromY: fromPoint.y,
-        toX: connection.to.x,
-        toY: connection.to.y,
-        fromSide,
-        toSide: null
-      };
-      
-      // Create path
-      pathData = createConnectionPath(connectionPoints);
+      // Vertical dominance
+      fromSide = dy > 0 ? 'bottom' : 'top';
     }
+    
+    const fromPoint = fromEdges[fromSide];
+    
+    // Create connection points for the path
+    const connectionPoints = {
+      fromX: fromPoint.x,
+      fromY: fromPoint.y,
+      toX: targetX,
+      toY: targetY,
+      fromSide,
+      toSide: connection.to.targetSide || null
+    };
+    
+    // Create path
+    pathData = createConnectionPath(connectionPoints);
     
     return (
       <path

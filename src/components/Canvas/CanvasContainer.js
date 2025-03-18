@@ -243,6 +243,13 @@ const CanvasContainer = () => {
         clearAllSelections();
         setSelectionBox(null);
         setIsSelecting(false);
+        
+        // Also cancel any connection in progress
+        if (startConnection) {
+          setStartConnection(null);
+          setTempConnection(null);
+          setConnectionSource(null);
+        }
       }
     };
 
@@ -271,7 +278,11 @@ const CanvasContainer = () => {
     deleteSelectedElements,
     copySelectedElements,
     pasteElements,
-    resetZoom
+    resetZoom,
+    startConnection,
+    setStartConnection,
+    setTempConnection,
+    setConnectionSource
   ]);
 
   // Effect for handling delete mode actions
@@ -812,64 +823,66 @@ const CanvasContainer = () => {
       } else if (mode === 'postit') {
         const rect = canvasRef.current.getBoundingClientRect();
         const x = (e.clientX - rect.left - transform.x) / transform.scale;
-        const y = (e.clientY - rect.top - transform.y) / transform.scale;
+        // This is the final section of the CanvasContainer component
+
+    const y = (e.clientY - rect.top - transform.y) / transform.scale;
         
-        const newPostit = {
-          id: Date.now(),
-          x,
-          y,
-          width: 150,
-          height: 150,
-          content: 'New Post-it',
-          backgroundColor: '#FFEFB5' // Default post-it color
-        };
-        
-        setPostits([...postits, newPostit]);
-        
-        // Clear any existing selections
-        clearAllSelections();
-        
-        // Select the newly created post-it
-        setSelectedPostitId(newPostit.id);
-        
-        // Switch to select mode after creating a post-it
-        setMode('select');
-      } else if (mode === 'text') {
-        const rect = canvasRef.current.getBoundingClientRect();
-        const x = (e.clientX - rect.left - transform.x) / transform.scale;
-        const y = (e.clientY - rect.top - transform.y) / transform.scale;
-        
-        // Prompt for text content immediately
-        const textContent = window.prompt('Enter text:');
-        
-        // Only create a text node if content is not empty
-        if (textContent && textContent.trim() !== '') {
-          const newText = {
-            id: Date.now(),
-            x,
-            y,
-            width: 200, // Initial width, will adjust based on content
-            height: 30, // Initial height, will adjust based on content
-            content: textContent
-          };
-          
-          setTexts([...texts, newText]);
-          
-          // Clear any existing selections
-          clearAllSelections();
-          // Select the newly created text node
-          setSelectedTextId(newText.id);
-          
-          // Switch to select mode after creating a text node
-          setMode('select');
-        }
-      } else if (mode === 'delete') {
-        // If in delete mode and clicked on empty canvas, just deselect and switch back to select mode
-        clearAllSelections();
-        setMode('select');
-      }
+    const newPostit = {
+      id: Date.now(),
+      x,
+      y,
+      width: 150,
+      height: 150,
+      content: 'New Post-it',
+      backgroundColor: '#FFEFB5' // Default post-it color
+    };
+    
+    setPostits([...postits, newPostit]);
+    
+    // Clear any existing selections
+    clearAllSelections();
+    
+    // Select the newly created post-it
+    setSelectedPostitId(newPostit.id);
+    
+    // Switch to select mode after creating a post-it
+    setMode('select');
+  } else if (mode === 'text') {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left - transform.x) / transform.scale;
+    const y = (e.clientY - rect.top - transform.y) / transform.scale;
+    
+    // Prompt for text content immediately
+    const textContent = window.prompt('Enter text:');
+    
+    // Only create a text node if content is not empty
+    if (textContent && textContent.trim() !== '') {
+      const newText = {
+        id: Date.now(),
+        x,
+        y,
+        width: 200, // Initial width, will adjust based on content
+        height: 30, // Initial height, will adjust based on content
+        content: textContent
+      };
+      
+      setTexts([...texts, newText]);
+      
+      // Clear any existing selections
+      clearAllSelections();
+      // Select the newly created text node
+      setSelectedTextId(newText.id);
+      
+      // Switch to select mode after creating a text node
+      setMode('select');
     }
-  };
+  } else if (mode === 'delete') {
+    // If in delete mode and clicked on empty canvas, just deselect and switch back to select mode
+    clearAllSelections();
+    setMode('select');
+  }
+}
+};
 
   return (
     <div 
@@ -914,35 +927,10 @@ const CanvasContainer = () => {
         
         {/* Render connection lines */}
         <svg className="connections-svg" width="100%" height="100%" style={{ overflow: 'visible' }}>
-          {/* Arrow marker definitions */}
-          <defs>
-            <marker
-              id="arrow-start"
-              viewBox="0 0 10 10"
-              refX="9"
-              refY="5"
-              markerWidth="6"
-              markerHeight="6"
-              orient="auto-start-reverse"
-            >
-              <path d="M 10 5 L 0 0 L 0 10 z" fill="#4a90e2" />
-            </marker>
-            <marker
-              id="arrow-end"
-              viewBox="0 0 10 10"
-              refX="0"
-              refY="5"
-              markerWidth="6"
-              markerHeight="6"
-              orient="auto"
-            >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a90e2" />
-            </marker>
-          </defs>
-          
-          {connections.map((conn, index) => (
+          {/* Render permanent connections */}
+          {connections.map((conn) => (
             <Connection 
-              key={index} 
+              key={conn.id} 
               connection={conn}
               isMultiSelected={selectedElements.connections.includes(conn.id)}
             />
